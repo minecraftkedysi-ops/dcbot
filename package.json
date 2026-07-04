@@ -1,0 +1,13 @@
+{
+  "name": "discord-voice-stay",
+  "version": "1.0.0",
+  "description": "7/24 ses kanalında kalma botu",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js-selfbot-v13": "^2.11.0",
+    "express": "^4.19.2"
+  }
+}
