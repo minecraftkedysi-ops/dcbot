@@ -1,53 +1,56 @@
 const { Client } = require('discord.js-selfbot-v13');
-const express = require('express');
-const app = express();
+const { joinVoiceChannel } = require('@discordjs/voice');
 
-// Botun 7/24 uyanık kalması için mini web sunucusu
-app.get('/', (req, res) => {
-    res.send('Hesap seste aktif!');
+// Discord'un API değişikliklerinden kaynaklanan hataları engellemek için önlemler
+process.on('unhandledRejection', (reason, p) => {
+    console.log(' [Hata Yakalandı] Göz ardı ediliyor:', reason);
 });
-app.listen(process.env.PORT || 3000);
+process.on("uncaughtException", (err, origin) => {
+    console.log(' [Hata Yakalandı] Göz ardı ediliyor:', err);
+});
 
 const client = new Client({
     checkUpdate: false,
+    // Kütüphanenin çökmesine sebep olan gereksiz kullanıcı verilerini çekmesini engelliyoruz
+    ws: { 
+        properties: { $os: 'Linux', $browser: 'Discord Client', $device: 'discord.js' } 
+    }
 });
 
-const SERVER_ID = '1435663205593776190';
-const CHANNEL_ID = '1521557572388130876';
+// Çökmeyi engelleyen kritik yama (Client hazır olmadan hemen önce araya giriyoruz)
+client.on('shardReady', () => {
+    if (client.user && client.user.settings) {
+        client.user.settings._patch = function(data) {
+            return this;
+        };
+    }
+});
 
 client.on('ready', async () => {
-    console.log(`${client.user.username} olarak giriş yapıldı!`);
-    
+    console.log(`🎉 Bot başarıyla ${client.user.tag} hesabına giriş yaptı!`);
+
+    // Render'da Environment kısmına girdiğin kanal ve sunucu ID'lerini çeker
+    const CHANNEL_ID = process.env.CHANNEL_ID;
+    const GUILD_ID = process.env.GUILD_ID;
+
+    if (!CHANNEL_ID || !GUILD_ID) {
+        console.error("❌ HATA: Render paneline CHANNEL_ID veya GUILD_ID girilmemiş!");
+        return;
+    }
+
     try {
-        const guild = await client.guilds.fetch(SERVER_ID);
-        const channel = await client.channels.fetch(CHANNEL_ID);
-        
-        if (channel && channel.isVoice()) {
-            // Kanala bağlan ve kamerayı/sesi kapat (opsiyonel)
-            const connection = await client.voice.joinChannel(channel, {
-                selfMute: true, // Sesi kapatır
-                selfDeaf: true, // Sağırlaştırır
-                selfVideo: false // Kamerayı kapatır
-            });
-            console.log('Başarıyla ses kanalına bağlanıldı ve 7/24 moduna geçildi.');
-        } else {
-            console.error('Belirtilen ID bir ses kanalı değil!');
-        }
+        joinVoiceChannel({
+            channelId: CHANNEL_ID,
+            guildId: GUILD_ID,
+            adapterCreator: client.guilds.cache.get(GUILD_ID).voiceAdapterCreator,
+            selfMute: true,  // Botun sesi kapalı olsun
+            selfDeaf: true   // Botun sağırlaştırması açık olsun (sunucuyu yormaz)
+        });
+        console.log("🚀 Başarıyla ses kanalına bağlanıldı ve 7/24 aktiflik başlatıldı!");
     } catch (error) {
-        console.error('Kanala bağlanırken hata oluştu:', error);
+        console.error("❌ Ses kanalına bağlanırken bir hata oluştu:", error);
     }
 });
 
-// Eğer sesten bir şekilde düşerse otomatik geri bağlanma
-client.on('voiceStateUpdate', (oldState, newState) => {
-    if (oldState.member.id === client.user.id && !newState.channelId) {
-        console.log('Sesten düşüldü, tekrar bağlanılıyor...');
-        const channel = client.channels.cache.get(CHANNEL_ID);
-        if (channel) {
-            client.voice.joinChannel(channel, { selfMute: true, selfDeaf: true });
-        }
-    }
-});
-
-// Hesap Tokenı Çevre Değişkeninden (Environment Variable) alınacak
+// Render'a girdiğin TOKEN değişkeni ile hesaba giriş yapar
 client.login(process.env.TOKEN);
