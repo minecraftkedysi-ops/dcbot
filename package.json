@@ -1,7 +1,7 @@
 {
   "name": "discord-voice-stay",
   "version": "1.0.0",
-  "description": "7/24 ses kanalında kalma botu",
+  "description": "7/24 ses botu",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
